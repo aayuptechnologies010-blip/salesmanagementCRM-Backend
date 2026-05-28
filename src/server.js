@@ -27,7 +27,10 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ── CORS ──
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: (origin, callback) => {
+    // Dynamically allow requesting origin for credentials-based CORS requests
+    callback(null, true);
+  },
   credentials: true,
 }));
 
