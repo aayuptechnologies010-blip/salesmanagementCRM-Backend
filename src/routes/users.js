@@ -56,6 +56,47 @@ router.patch('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+// POST /api/users/superadmin — create a new Super Admin (super admin only)
+router.post('/superadmin', protect, superAdminOnly, async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+
+    const exists = await User.findOne({ email: email.toLowerCase() });
+    if (exists) return res.status(400).json({ message: 'Email already registered' });
+
+    const avatar = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      password,       // pre-save hook will hash this automatically
+      role: 'Super Admin',
+      team: '-',
+      avatar,
+      status: 'Active'
+    });
+
+    res.status(201).json({
+      message: 'Super Admin created successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        status: user.status,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // DELETE /api/users/:id — delete user (super admin only)
 router.delete('/:id', protect, superAdminOnly, async (req, res) => {
   try {
