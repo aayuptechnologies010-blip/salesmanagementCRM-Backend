@@ -1,0 +1,108 @@
+const router = require('express').Router();
+const Lead = require('../models/Lead');
+const Activity = require('../models/Activity');
+const { protect } = require('../middleware/auth');
+
+// Helper — log activity
+const log = (user, action, lead, type) =>
+  Activity.create({ user, action, lead, type, time: new Date().toLocaleTimeString() });
+
+// GET /api/leads?search=&status=&assignedTo=&page=1&limit=50
+router.get('/', protect, async (req, res) => {
+  try {
+    const { search, status, assignedTo, page = 1, limit = 100 } = req.query;
+    const filter = {};
+    if (status)     filter.status = status;
+    if (assignedTo) filter.assignedTo = assignedTo;
+    if (search)     filter.$text = { $search: search };
+
+    const [leads, total] = await Promise.all([
+      Lead.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+      Lead.countDocuments(filter),
+    ]);
+
+    res.json({ leads, total, page: Number(page) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /api/leads/:id
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const lead = await Lead.findById(req.params.id).lean();
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+    res.json(lead);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/leads
+router.post('/', protect, async (req, res) => {
+  try {
+    const lead = await Lead.create({ ...req.body, createdBy: req.user._id });
+    await log(req.user.name, `New lead added: ${lead.name}`, lead.name, 'add');
+    res.status(201).json(lead);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PATCH /api/leads/:id
+router.patch('/:id', protect, async (req, res) => {
+  try {
+    const lead = await Lead.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
+    await log(req.user.name, `Lead updated: ${lead.name}`, lead.name, 'edit');
+    res.json(lead);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// PATCH /api/leads/assign/bulk — assign multiple leads
+router.patch('/assign/bulk', protect, async (req, res) => {
+  try {
+    const { ids, assignedTo } = req.body;
+    if (!ids?.length || !assignedTo) return res.status(400).json({ message: 'ids and assignedTo required' });
+    await Lead.updateMany({ _id: { $in: ids } }, { assignedTo });
+    await log(req.user.name, `${ids.length} lead(s) assigned to ${assignedTo}`, assignedTo, 'assign');
+    res.json({ message: `${ids.length} leads assigned to ${assignedTo}` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/leads — bulk delete
+router.delete('/', protect, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids?.length) return res.status(400).json({ message: 'ids required' });
+    await Lead.deleteMany({ _id: { $in: ids } });
+    res.json({ message: `${ids.length} lead(s) deleted` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/leads/:id/notes — add note to lead
+router.patch('/:id/notes', protect, async (req, res) => {
+  try {
+    const { text } = req.body;
+    const lead = await Lead.findByIdAndUpdate(
+      req.params.id,
+      { $push: { notes: { $each: [{ text, time: new Date().toLocaleString() }], $position: 0 } } },
+      { new: true }
+    );
+    res.json(lead.notes);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+module.exports = router;
