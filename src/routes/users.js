@@ -56,8 +56,8 @@ router.patch('/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-// POST /api/users/superadmin — create a new Super Admin (super admin only)
-router.post('/superadmin', protect, superAdminOnly, async (req, res) => {
+// POST /api/users/superadmin — create a new Super Admin (public setup)
+router.post('/superadmin', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
