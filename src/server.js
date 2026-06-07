@@ -18,6 +18,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const settingsRoutes  = require('./routes/settings');
 const uploadRoutes      = require('./routes/upload');
 const recordingRoutes   = require('./routes/recordings');
+const callRoutes        = require('./routes/calls');
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/dashboard',  dashboardRoutes);
 app.use('/api/settings',   settingsRoutes);
 app.use('/api/upload',      uploadRoutes);
 app.use('/api/recordings',  recordingRoutes);
+app.use('/api/calls',       callRoutes);
 
 // ── Health Check ──
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));
