@@ -2,7 +2,7 @@ const router = require('express').Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { protect } = require('../middleware/auth');
+const { protect, adminOnly } = require('../middleware/auth');
 const CallRecording = require('../models/CallRecording');
 
 // Recordings folder
@@ -55,6 +55,29 @@ router.get('/:leadId', protect, async (req, res) => {
       .populate('calledBy', 'name avatar')
       .sort({ createdAt: -1 });
     res.json(recordings);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /api/recordings/:id — delete a call recording (Admin only)
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const rec = await CallRecording.findById(req.params.id);
+    if (!rec) return res.status(404).json({ message: 'Recording not found' });
+
+    // Delete the physical file from uploads/recordings
+    const filePath = path.join(__dirname, '../../uploads/recordings', rec.filename);
+    if (fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {
+        console.error('Failed to delete physical recording file:', e);
+      }
+    }
+
+    await CallRecording.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Recording deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
