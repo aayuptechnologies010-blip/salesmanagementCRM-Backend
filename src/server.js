@@ -19,6 +19,7 @@ const settingsRoutes  = require('./routes/settings');
 const uploadRoutes      = require('./routes/upload');
 const recordingRoutes   = require('./routes/recordings');
 const callRoutes        = require('./routes/calls');
+const leadImportRoutes  = require('./routes/leadImport');
 
 const app = express();
 
@@ -54,17 +55,18 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads/recordings', express.static(path.join(__dirname, '../uploads/recordings')));
 
 // ── Routes ──
-app.use('/api/auth',       authRoutes);
-app.use('/api/users',      userRoutes);
-app.use('/api/leads',      leadRoutes);
-app.use('/api/followups',  followUpRoutes);
-app.use('/api/activities', activityRoutes);
-app.use('/api/invoices',   invoiceRoutes);
-app.use('/api/dashboard',  dashboardRoutes);
-app.use('/api/settings',   settingsRoutes);
-app.use('/api/upload',      uploadRoutes);
-app.use('/api/recordings',  recordingRoutes);
-app.use('/api/calls',       callRoutes);
+app.use('/api/auth',         authRoutes);
+app.use('/api/users',        userRoutes);
+app.use('/api/leads/import', leadImportRoutes); // ⚠️ Must be BEFORE /api/leads
+app.use('/api/leads',        leadRoutes);
+app.use('/api/followups',    followUpRoutes);
+app.use('/api/activities',   activityRoutes);
+app.use('/api/invoices',     invoiceRoutes);
+app.use('/api/dashboard',    dashboardRoutes);
+app.use('/api/settings',     settingsRoutes);
+app.use('/api/upload',       uploadRoutes);
+app.use('/api/recordings',   recordingRoutes);
+app.use('/api/calls',        callRoutes);
 
 // ── Health Check ──
 app.get('/api/health', (_, res) => res.json({ status: 'ok', timestamp: new Date() }));

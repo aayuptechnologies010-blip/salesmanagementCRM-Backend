@@ -11,22 +11,26 @@ const log = (user, action, lead, type) =>
 // GET /api/leads?search=&status=&assignedTo=&page=1&limit=50
 router.get('/', protect, async (req, res) => {
   try {
-    const { search, status, assignedTo, page = 1, limit = 100 } = req.query;
+    const { search, status, assignedTo, page, limit } = req.query;
     const filter = {};
     if (status)     filter.status = status;
     if (assignedTo) filter.assignedTo = assignedTo;
     if (search)     filter.$text = { $search: search };
 
+    let query = Lead.find(filter)
+      .select('name email phone company source status leadType assignedTo followUpDate value createdAt')
+      .sort({ createdAt: -1 });
+
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 25000;
+    query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
+
     const [leads, total] = await Promise.all([
-      Lead.find(filter)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(Number(limit))
-        .lean(),
+      query.lean(),
       Lead.countDocuments(filter),
     ]);
 
-    res.json({ leads, total, page: Number(page) });
+    res.json({ leads, total, page: page ? Number(page) : 1 });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
