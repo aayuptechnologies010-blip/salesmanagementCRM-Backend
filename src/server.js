@@ -82,11 +82,13 @@ app.use((err, req, res, next) => {
 });
 
 // ── DB + Server ──
+const PORT = process.env.PORT || 5009;
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
-    app.listen(process.env.PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${process.env.PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   })
   .catch(err => {
