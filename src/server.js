@@ -23,19 +23,20 @@ const leadImportRoutes  = require('./routes/leadImport');
 
 const app = express();
 
+// ── CORS (must be before helmet) ──
+const corsOptions = {
+  origin: (origin, callback) => callback(null, true),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // preflight for all routes
+
 // ── Security & Performance ──
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-
-// ── CORS ──
-app.use(cors({
-  origin: (origin, callback) => {
-    // Dynamically allow requesting origin for credentials-based CORS requests
-    callback(null, true);
-  },
-  credentials: true,
-}));
 
 // ── Body Parser ──
 app.use(express.json({ limit: '5mb' }));
