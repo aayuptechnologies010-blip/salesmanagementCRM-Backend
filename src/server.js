@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -9,16 +11,65 @@ const rateLimit = require("express-rate-limit");
 const path = require("path");
 
 const app = express();
-
-/* =========================
-   CORS
-========================= */
+const httpServer = http.createServer(app);
 
 const allowedOrigins = [
   "https://salesmanagementcrm-frontend.onrender.com",
   "http://localhost:3000",
   "http://localhost:5173",
 ];
+
+// Socket.io setup
+const io = new Server(httpServer, {
+  cors: { origin: allowedOrigins, credentials: true },
+});
+
+// email -> socketId map (active sessions)
+const activeSessions = {};
+// email -> pending login resolve map
+const pendingLogins = {};
+
+io.on("connection", (socket) => {
+  // User registers their socket after login
+  socket.on("register", (email) => {
+    activeSessions[email] = socket.id;
+  });
+
+  // Device B requests login approval from Device A
+  socket.on("request_login", ({ email, requestSocketId }) => {
+    const existingSocketId = activeSessions[email];
+    if (existingSocketId) {
+      // Ask Device A to approve
+      io.to(existingSocketId).emit("login_request", { email, requestSocketId });
+    } else {
+      // No active session — allow directly
+      socket.emit("login_approved", { email });
+    }
+  });
+
+  // Device A approves
+  socket.on("login_approve", ({ email, requestSocketId }) => {
+    io.to(requestSocketId).emit("login_approved", { email });
+    // Remove old session
+    delete activeSessions[email];
+  });
+
+  // Device A rejects
+  socket.on("login_reject", ({ email, requestSocketId }) => {
+    io.to(requestSocketId).emit("login_rejected", { email });
+  });
+
+  socket.on("disconnect", () => {
+    // Clean up session on disconnect
+    for (const [email, sid] of Object.entries(activeSessions)) {
+      if (sid === socket.id) { delete activeSessions[email]; break; }
+    }
+  });
+});
+
+// Export io for use in routes if needed
+app.set("io", io);
+app.set("activeSessions", activeSessions);
 
 app.use(
   cors({
@@ -165,8 +216,7 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB Connected");
-
-    app.listen(PORT, "0.0.0.0", () => {
+    httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on ${PORT}`);
     });
   })
