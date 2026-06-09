@@ -1,22 +1,37 @@
 const router = require('express').Router();
 const User = require('../models/User');
+const Lead = require('../models/Lead');
 const { protect, adminOnly, superAdminOnly } = require('../middleware/auth');
 
-// GET /api/users — all users (admin+)
+// GET /api/users — all users with lead stats (admin+)
 router.get('/', protect, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select('-password').lean();
-    res.json(users);
+    const usersWithStats = await Promise.all(users.map(async (u) => {
+      const [leads, converted] = await Promise.all([
+        Lead.countDocuments({ assignedTo: u.name }),
+        Lead.countDocuments({ assignedTo: u.name, status: 'Won' }),
+      ]);
+      return { ...u, leadsCount: leads, convertedCount: converted };
+    }));
+    res.json(usersWithStats);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// GET /api/users/team — non-super-admin users (for dropdowns)
+// GET /api/users/team — non-super-admin users with lead stats
 router.get('/team', protect, async (req, res) => {
   try {
     const members = await User.find({ role: { $ne: 'Super Admin' } }).select('-password').lean();
-    res.json(members);
+    const withStats = await Promise.all(members.map(async (u) => {
+      const [leads, converted] = await Promise.all([
+        Lead.countDocuments({ assignedTo: u.name }),
+        Lead.countDocuments({ assignedTo: u.name, status: 'Won' }),
+      ]);
+      return { ...u, leadsCount: leads, convertedCount: converted };
+    }));
+    res.json(withStats);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
