@@ -8,23 +8,23 @@ const { protect } = require('../middleware/auth');
 const log = (user, action, lead, type) =>
   Activity.create({ user, action, lead, type, time: new Date().toLocaleTimeString() });
 
-// GET /api/leads?search=&status=&assignedTo=&page=1&limit=500
+// GET /api/leads?search=&status=&leadType=&assignedTo=&page=1&limit=100
 router.get('/', protect, async (req, res) => {
   try {
-    const { search, status, assignedTo, page, limit } = req.query;
+    const { search, status, assignedTo, leadType, page, limit } = req.query;
     const filter = {};
 
-    // Role-based filter on backend
     if (req.user.role === 'Sales Executive') {
       filter.assignedTo = req.user.name;
     } else {
       if (status)     filter.status = status;
       if (assignedTo) filter.assignedTo = assignedTo;
+      if (leadType)   filter.leadType = leadType;
     }
     if (search) filter.$text = { $search: search };
 
     const pageNum  = Number(page)  || 1;
-    const limitNum = Math.min(Number(limit) || 500, 2000);
+    const limitNum = Math.min(Number(limit) || 100, 500);
 
     const [leads, total] = await Promise.all([
       Lead.find(filter)
