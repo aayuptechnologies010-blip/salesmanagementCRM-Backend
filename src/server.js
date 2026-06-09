@@ -38,11 +38,14 @@ io.on("connection", (socket) => {
   // Device B requests login approval from Device A
   socket.on("request_login", ({ email, requestSocketId }) => {
     const existingSocketId = activeSessions[email];
-    if (existingSocketId) {
+    // Check if the existing socket is still actually connected
+    const existingSocket = existingSocketId && io.sockets.sockets.get(existingSocketId);
+    if (existingSocket) {
       // Ask Device A to approve
-      io.to(existingSocketId).emit("login_request", { email, requestSocketId });
+      existingSocket.emit("login_request", { email, requestSocketId });
     } else {
-      // No active session — allow directly
+      // No active session or stale session — allow directly
+      if (existingSocketId) delete activeSessions[email];
       socket.emit("login_approved", { email });
     }
   });
