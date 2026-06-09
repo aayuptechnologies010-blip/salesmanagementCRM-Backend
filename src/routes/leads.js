@@ -8,27 +8,27 @@ const { protect } = require('../middleware/auth');
 const log = (user, action, lead, type) =>
   Activity.create({ user, action, lead, type, time: new Date().toLocaleTimeString() });
 
-// GET /api/leads?search=&status=&leadType=&assignedTo=&page=1&limit=100
+// GET /api/leads
 router.get('/', protect, async (req, res) => {
   try {
-    const { search, status, assignedTo, leadType, page, limit } = req.query;
+    const { search, status, assignedTo, page, limit } = req.query;
     const filter = {};
 
+    // Sales Executive sirf apne leads dekhe — backend pe filter
     if (req.user.role === 'Sales Executive') {
       filter.assignedTo = req.user.name;
     } else {
       if (status)     filter.status = status;
       if (assignedTo) filter.assignedTo = assignedTo;
-      if (leadType)   filter.leadType = leadType;
     }
     if (search) filter.$text = { $search: search };
 
     const pageNum  = Number(page)  || 1;
-    const limitNum = Math.min(Number(limit) || 100, 500);
+    const limitNum = Number(limit) || 5000; // reasonable default
 
     const [leads, total] = await Promise.all([
       Lead.find(filter)
-        .select('name email phone company source status leadType assignedTo followUpDate value createdAt')
+        .select('name email phone company source status leadType assignedTo followUpDate value createdAt notes')
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum)
@@ -67,7 +67,6 @@ router.post('/', protect, async (req, res) => {
 // PATCH /api/leads/:id
 router.patch('/:id', protect, async (req, res) => {
   try {
-    // Lead edit restriction: Only Super Admin can modify details other than status & followUpDate
     if (req.user.role !== 'Super Admin') {
       const allowedKeys = ['status', 'followUpDate'];
       const updates = Object.keys(req.body);
@@ -80,7 +79,6 @@ router.patch('/:id', protect, async (req, res) => {
     const lead = await Lead.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
-    // Specific activity messages
     if (req.body.status) {
       await log(req.user.name, `Status changed to "${req.body.status}" for ${lead.name}`, lead.name, 'edit');
     } else if (req.body.followUpDate) {
@@ -94,39 +92,27 @@ router.patch('/:id', protect, async (req, res) => {
   }
 });
 
-// PATCH /api/leads/assign/bulk — assign multiple leads
+// PATCH /api/leads/assign/bulk
 router.patch('/assign/bulk', protect, async (req, res) => {
   try {
     const { ids, assignedTo, followUpDate } = req.body;
     if (!ids?.length || !assignedTo) return res.status(400).json({ message: 'ids and assignedTo required' });
-    
+
     const updateData = { assignedTo };
-    if (followUpDate) {
-      updateData.followUpDate = followUpDate;
-    }
-    
-    // Update leads
+    if (followUpDate) updateData.followUpDate = followUpDate;
+
     await Lead.updateMany({ _id: { $in: ids } }, updateData);
-    
-    // Create FollowUp schedules if followUpDate is specified
+
     if (followUpDate) {
       const leadsList = await Lead.find({ _id: { $in: ids } }).lean();
       const followUpsToCreate = leadsList.map(l => ({
-        lead: l.name,
-        company: l.company || '',
-        date: followUpDate,
-        time: '10:00', // default time
-        assignedTo,
-        priority: 'Medium',
-        status: 'Pending',
-        leadRef: l._id,
-        createdBy: req.user._id
+        lead: l.name, company: l.company || '', date: followUpDate,
+        time: '10:00', assignedTo, priority: 'Medium', status: 'Pending',
+        leadRef: l._id, createdBy: req.user._id
       }));
-      if (followUpsToCreate.length > 0) {
-        await FollowUp.insertMany(followUpsToCreate);
-      }
+      if (followUpsToCreate.length > 0) await FollowUp.insertMany(followUpsToCreate);
     }
-    
+
     await log(req.user.name, `${ids.length} lead(s) assigned to ${assignedTo}`, assignedTo, 'assign');
     res.json({ message: `${ids.length} leads assigned to ${assignedTo}` });
   } catch (err) {
@@ -134,7 +120,7 @@ router.patch('/assign/bulk', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/leads — bulk delete
+// DELETE /api/leads
 router.delete('/', protect, async (req, res) => {
   try {
     const { ids } = req.body;
@@ -146,7 +132,7 @@ router.delete('/', protect, async (req, res) => {
   }
 });
 
-// PATCH /api/leads/:id/notes — add note to lead
+// PATCH /api/leads/:id/notes
 router.patch('/:id/notes', protect, async (req, res) => {
   try {
     const { text } = req.body;
