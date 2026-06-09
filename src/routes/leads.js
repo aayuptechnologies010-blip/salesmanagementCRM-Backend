@@ -98,14 +98,18 @@ router.patch('/assign/bulk', protect, async (req, res) => {
     const { ids, assignedTo, followUpDate } = req.body;
     if (!ids?.length || !assignedTo) return res.status(400).json({ message: 'ids and assignedTo required' });
 
+    // Only assign leads that are NOT already assigned
+    const eligibleLeads = await Lead.find({ _id: { $in: ids }, assignedTo: { $in: [null, '', undefined] } }).lean();
+    const eligibleIds = eligibleLeads.map(l => l._id);
+    if (!eligibleIds.length) return res.status(400).json({ message: 'All selected leads are already assigned' });
+
     const updateData = { assignedTo };
     if (followUpDate) updateData.followUpDate = followUpDate;
 
-    await Lead.updateMany({ _id: { $in: ids } }, updateData);
+    await Lead.updateMany({ _id: { $in: eligibleIds } }, updateData);
 
     if (followUpDate) {
-      const leadsList = await Lead.find({ _id: { $in: ids } }).lean();
-      const followUpsToCreate = leadsList.map(l => ({
+      const followUpsToCreate = eligibleLeads.map(l => ({
         lead: l.name, company: l.company || '', date: followUpDate,
         time: '10:00', assignedTo, priority: 'Medium', status: 'Pending',
         leadRef: l._id, createdBy: req.user._id
@@ -113,8 +117,8 @@ router.patch('/assign/bulk', protect, async (req, res) => {
       if (followUpsToCreate.length > 0) await FollowUp.insertMany(followUpsToCreate);
     }
 
-    await log(req.user.name, `${ids.length} lead(s) assigned to ${assignedTo}`, assignedTo, 'assign');
-    res.json({ message: `${ids.length} leads assigned to ${assignedTo}` });
+    await log(req.user.name, `${eligibleIds.length} lead(s) assigned to ${assignedTo}`, assignedTo, 'assign');
+    res.json({ message: `${eligibleIds.length} leads assigned to ${assignedTo}` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
