@@ -277,7 +277,8 @@ router.post('/confirm', protect, async (req, res) => {
   const { filename } = req.body;
   if (!filename) return res.status(400).json({ message: 'Filename is required to complete the import.' });
 
-  const filePath = path.join(__dirname, '../../uploads/temp', filename);
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(__dirname, '../../uploads/temp', safeFilename);
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ message: 'Temporary file not found. Please upload the file again.' });
   }
@@ -296,25 +297,39 @@ router.post('/confirm', protect, async (req, res) => {
       return res.status(400).json({ message: 'No valid leads found. Make sure the "Name" column has values.' });
     }
 
-    const inserted = await Lead.insertMany(leadsToInsert, { ordered: false });
+    const batchSize = 500;
+    let imported = 0;
 
-    const ext = path.extname(filename).replace('.', '').toUpperCase();
+    for (let i = 0; i < leadsToInsert.length; i += batchSize) {
+      const batch = leadsToInsert.slice(i, i + batchSize);
+
+      try {
+        const inserted = await Lead.insertMany(batch, { ordered: false });
+        imported += inserted.length;
+      } catch (err) {
+        if (err.insertedDocs) {
+          imported += err.insertedDocs.length;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    const ext = path.extname(safeFilename).replace('.', '').toUpperCase();
     await Activity.create({
       user:   req.user.name,
-      action: `Imported ${inserted.length} lead(s) via ${ext}`,
+      action: `Imported ${imported} lead(s) via ${ext}`,
       lead:   'Bulk Import',
       type:   'add',
       time:   new Date().toLocaleTimeString(),
     });
 
-    res.json({ imported: inserted.length, skipped: leadsToInsert.length - inserted.length, leads: inserted });
+    res.json({
+      imported,
+      skipped: dataRows.length - imported,
+    });
   } catch (err) {
-    // insertMany with ordered:false — partial success case
-    if (err.insertedDocs) {
-      res.json({ imported: err.insertedDocs.length, skipped: 0 });
-    } else {
-      res.status(500).json({ message: err.message });
-    }
+    res.status(500).json({ message: err.message });
   } finally {
     try { fs.unlinkSync(filePath); } catch (_) {}
   }
