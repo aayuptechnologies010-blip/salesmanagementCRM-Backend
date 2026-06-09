@@ -9,7 +9,7 @@ router.get('/', protect, adminOnly, async (req, res) => {
     const users = await User.find().select('-password').lean();
     const usersWithStats = await Promise.all(users.map(async (u) => {
       const [leads, converted] = await Promise.all([
-        Lead.countDocuments({ assignedTo: u.name }),
+        Lead.countDocuments({ assignedTo: u.name, status: { $ne: 'New' } }),
         Lead.countDocuments({ assignedTo: u.name, status: 'Won' }),
       ]);
       return { ...u, leadsCount: leads, convertedCount: converted };
@@ -26,7 +26,7 @@ router.get('/team', protect, async (req, res) => {
     const members = await User.find({ role: { $ne: 'Super Admin' } }).select('-password').lean();
     const withStats = await Promise.all(members.map(async (u) => {
       const [leads, converted] = await Promise.all([
-        Lead.countDocuments({ assignedTo: u.name }),
+        Lead.countDocuments({ assignedTo: u.name, status: { $ne: 'New' } }),
         Lead.countDocuments({ assignedTo: u.name, status: 'Won' }),
       ]);
       return { ...u, leadsCount: leads, convertedCount: converted };
