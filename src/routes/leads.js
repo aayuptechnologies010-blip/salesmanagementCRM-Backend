@@ -61,6 +61,16 @@ router.post('/', protect, async (req, res) => {
 // PATCH /api/leads/:id
 router.patch('/:id', protect, async (req, res) => {
   try {
+    // Lead edit restriction: Only Super Admin can modify details other than status & followUpDate
+    if (req.user.role !== 'Super Admin') {
+      const allowedKeys = ['status', 'followUpDate'];
+      const updates = Object.keys(req.body);
+      const isTryingToEditOtherFields = updates.some(key => !allowedKeys.includes(key));
+      if (isTryingToEditOtherFields) {
+        return res.status(403).json({ message: 'Only Super Admin is allowed to edit lead details' });
+      }
+    }
+
     const lead = await Lead.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
     await log(req.user.name, `Lead updated: ${lead.name}`, lead.name, 'edit');
