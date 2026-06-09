@@ -26,12 +26,17 @@ const io = new Server(httpServer, {
 
 // email -> socketId map (active sessions)
 const activeSessions = {};
-// email -> pending login resolve map
-const pendingLogins = {};
+// email -> disconnect timeout map (grace period before removing session)
+const disconnectTimers = {};
 
 io.on("connection", (socket) => {
   // User registers their socket after login
   socket.on("register", (email) => {
+    // Cancel pending disconnect timer if reconnecting
+    if (disconnectTimers[email]) {
+      clearTimeout(disconnectTimers[email]);
+      delete disconnectTimers[email];
+    }
     activeSessions[email] = socket.id;
   });
 
@@ -63,9 +68,16 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    // Clean up session on disconnect
+    // Grace period: wait 30s before removing session (handles screen lock / background)
     for (const [email, sid] of Object.entries(activeSessions)) {
-      if (sid === socket.id) { delete activeSessions[email]; break; }
+      if (sid === socket.id) {
+        disconnectTimers[email] = setTimeout(() => {
+          // Only delete if socket hasn't reconnected with a new id
+          if (activeSessions[email] === sid) delete activeSessions[email];
+          delete disconnectTimers[email];
+        }, 30000);
+        break;
+      }
     }
   });
 });
