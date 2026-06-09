@@ -8,29 +8,35 @@ const { protect } = require('../middleware/auth');
 const log = (user, action, lead, type) =>
   Activity.create({ user, action, lead, type, time: new Date().toLocaleTimeString() });
 
-// GET /api/leads?search=&status=&assignedTo=&page=1&limit=50
+// GET /api/leads?search=&status=&assignedTo=&page=1&limit=500
 router.get('/', protect, async (req, res) => {
   try {
     const { search, status, assignedTo, page, limit } = req.query;
     const filter = {};
-    if (status)     filter.status = status;
-    if (assignedTo) filter.assignedTo = assignedTo;
-    if (search)     filter.$text = { $search: search };
 
-    let query = Lead.find(filter)
-      .select('name email phone company source status leadType assignedTo followUpDate value createdAt')
-      .sort({ createdAt: -1 });
+    // Role-based filter on backend
+    if (req.user.role === 'Sales Executive') {
+      filter.assignedTo = req.user.name;
+    } else {
+      if (status)     filter.status = status;
+      if (assignedTo) filter.assignedTo = assignedTo;
+    }
+    if (search) filter.$text = { $search: search };
 
-    const pageNum = Number(page) || 1;
-    const limitNum = Number(limit) || 25000;
-    query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
+    const pageNum  = Number(page)  || 1;
+    const limitNum = Math.min(Number(limit) || 500, 2000);
 
     const [leads, total] = await Promise.all([
-      query.lean(),
+      Lead.find(filter)
+        .select('name email phone company source status leadType assignedTo followUpDate value createdAt')
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .lean(),
       Lead.countDocuments(filter),
     ]);
 
-    res.json({ leads, total, page: page ? Number(page) : 1 });
+    res.json({ leads, total, page: pageNum });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -73,7 +79,15 @@ router.patch('/:id', protect, async (req, res) => {
 
     const lead = await Lead.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!lead) return res.status(404).json({ message: 'Lead not found' });
-    await log(req.user.name, `Lead updated: ${lead.name}`, lead.name, 'edit');
+
+    // Specific activity messages
+    if (req.body.status) {
+      await log(req.user.name, `Status changed to "${req.body.status}" for ${lead.name}`, lead.name, 'edit');
+    } else if (req.body.followUpDate) {
+      await log(req.user.name, `Follow-up date updated for ${lead.name}`, lead.name, 'followup');
+    } else {
+      await log(req.user.name, `Lead updated: ${lead.name}`, lead.name, 'edit');
+    }
     res.json(lead);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -141,6 +155,7 @@ router.patch('/:id/notes', protect, async (req, res) => {
       { $push: { notes: { $each: [{ text, time: new Date().toLocaleString() }], $position: 0 } } },
       { new: true }
     );
+    await log(req.user.name, `Note added on lead: ${lead.name}`, lead.name, 'edit');
     res.json(lead.notes);
   } catch (err) {
     res.status(400).json({ message: err.message });

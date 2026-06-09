@@ -36,8 +36,9 @@ const leadSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Index for fast search & filter
-leadSchema.index({ status: 1 });
-leadSchema.index({ assignedTo: 1 });
+leadSchema.index({ createdAt: -1 });
+leadSchema.index({ assignedTo: 1, createdAt: -1 });
+leadSchema.index({ status: 1, createdAt: -1 });
 leadSchema.index({ name: 'text', company: 'text', email: 'text' });
 
 module.exports = mongoose.model('Lead', leadSchema);
