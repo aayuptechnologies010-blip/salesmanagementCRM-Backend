@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
   name:         { type: String, required: true, trim: true },
@@ -14,13 +15,22 @@ const userSchema = new mongoose.Schema({
   leads:        { type: Number, default: 0 },
   converted:    { type: Number, default: 0 },
   notifications: {
-    newLead: { type: Boolean, default: true },
-    assignment: { type: Boolean, default: true },
-    followup: { type: Boolean, default: true },
-    conversion: { type: Boolean, default: false },
+    newLead:      { type: Boolean, default: true },
+    assignment:   { type: Boolean, default: true },
+    followup:     { type: Boolean, default: true },
+    conversion:   { type: Boolean, default: false },
     weeklyReport: { type: Boolean, default: true },
-  }
+  },
+  resetPasswordToken:   { type: String },
+  resetPasswordExpires: { type: Date },
 }, { timestamps: true });
+
+userSchema.methods.generateResetToken = function () {
+  const token = crypto.randomBytes(32).toString('hex');
+  this.resetPasswordToken   = crypto.createHash('sha256').update(token).digest('hex');
+  this.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+  return token;
+};
 
 // Auto-generate avatar initials
 userSchema.pre('save', async function (next) {

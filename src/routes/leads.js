@@ -21,18 +21,27 @@ router.get('/', protect, async (req, res) => {
       if (status)     filter.status = status;
       if (assignedTo) filter.assignedTo = assignedTo;
     }
-    if (search) filter.$text = { $search: search };
+    if (search) {
+      filter.$or = [
+        { name:    { $regex: search, $options: 'i' } },
+        { company: { $regex: search, $options: 'i' } },
+        { email:   { $regex: search, $options: 'i' } },
+        { phone:   { $regex: search, $options: 'i' } },
+      ];
+    }
 
     const pageNum  = Number(page)  || 1;
-    const limitNum = Number(limit) || 5000; // reasonable default
+    const limitNum = Number(limit) || 50000;
 
     const [leads, total] = await Promise.all([
-      Lead.find(filter)
-        .select('name email phone company source status leadType assignedTo followUpDate value createdAt notes')
-        .sort({ createdAt: -1 })
-        .skip((pageNum - 1) * limitNum)
-        .limit(limitNum)
-        .lean(),
+      Lead.aggregate([
+        { $match: filter },
+        { $addFields: { hasPhone: { $cond: [{ $and: [{ $gt: [{ $strLenCP: { $ifNull: ['$phone', ''] } }, 6] }] }, 1, 0] } } },
+        { $sort: { hasPhone: -1, createdAt: -1 } },
+        { $skip: (pageNum - 1) * limitNum },
+        { $limit: limitNum },
+        { $project: { name: 1, email: 1, phone: 1, company: 1, source: 1, status: 1, leadType: 1, assignedTo: 1, followUpDate: 1, value: 1, createdAt: 1, notes: 1 } },
+      ]),
       Lead.countDocuments(filter),
     ]);
 

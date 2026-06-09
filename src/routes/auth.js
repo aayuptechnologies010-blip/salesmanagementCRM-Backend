@@ -52,7 +52,6 @@ router.patch('/notifications', protect, async (req, res) => {
   try {
     const { notifications } = req.body;
     if (!notifications) return res.status(400).json({ message: 'Notifications object required' });
-    
     const updated = await User.findByIdAndUpdate(
       req.user._id,
       { notifications },
@@ -61,6 +60,53 @@ router.patch('/notifications', protect, async (req, res) => {
     res.json(updated);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email?.toLowerCase() });
+    // Always return success to prevent email enumeration
+    if (!user) return res.json({ message: 'If this email exists, a reset link has been sent.' });
+
+    const token = user.generateResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    console.log(`\n🔑 Password reset link for ${email}:\n${resetUrl}\n`);
+
+    // If nodemailer is configured, send email — otherwise just log
+    res.json({ message: 'If this email exists, a reset link has been sent.', resetUrl });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ message: 'Token and password required' });
+
+    const crypto = require('crypto');
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken:   hashed,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+    if (!user) return res.status(400).json({ message: 'Token is invalid or has expired.' });
+
+    user.password             = password;
+    user.resetPasswordToken   = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Password reset successful. You can now log in.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

@@ -10,7 +10,6 @@ router.get('/', protect, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
 
-    // Run all queries in parallel
     const [
       totalLeads,
       newToday,
@@ -31,7 +30,6 @@ router.get('/', protect, async (req, res) => {
       User.find({ role: { $ne: 'Super Admin' } }).select('-password').lean(),
     ]);
 
-    // Team performance
     const teamPerformance = await Promise.all(
       teamMembers.map(async (m) => {
         const [leads, converted] = await Promise.all([

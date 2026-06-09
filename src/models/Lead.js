@@ -7,7 +7,7 @@ const leadSchema = new mongoose.Schema({
   company:      { type: String, trim: true },
   value:        { type: String, default: '' },
   source:       { type: String, enum: ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign', 'Conference', 'Other'], default: 'Website' },
-  status:       { type: String, enum: ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'No Response'], default: 'New' },
+  status:       { type: String, enum: ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'No Response', 'Interested'], default: 'New' },
   leadType:     { type: String, enum: ['Client Project', 'Student Training'], default: 'Client Project' },
   
   // Student Training details

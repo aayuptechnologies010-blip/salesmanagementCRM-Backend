@@ -10,7 +10,7 @@ const { protect } = require('../middleware/auth');
 
 // ── Valid enum values ──────────────────────────────────────────
 const VALID_SOURCES  = ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign', 'Conference', 'Other'];
-const VALID_STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'No Response'];
+const VALID_STATUSES = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'No Response', 'Interested'];
 const VALID_TYPES    = ['Client Project', 'Student Training'];
 
 // ── Flexible column aliases (case-insensitive) ─────────────────
