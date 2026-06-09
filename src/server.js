@@ -24,14 +24,22 @@ const leadImportRoutes  = require('./routes/leadImport');
 const app = express();
 
 // ── CORS (must be before helmet) ──
+const ALLOWED_ORIGINS = [
+  'https://salesmanagementcrm-frontend.onrender.com',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
 const corsOptions = {
-  origin: (origin, callback) => callback(null, true),
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
+app.options('*', cors(corsOptions)); // preflight FIRST
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // preflight for all routes
 
 // ── Security & Performance ──
 app.use(helmet({ crossOriginResourcePolicy: false }));

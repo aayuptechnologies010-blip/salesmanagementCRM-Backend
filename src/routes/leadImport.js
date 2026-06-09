@@ -307,7 +307,7 @@ router.post('/confirm', protect, async (req, res) => {
       time:   new Date().toLocaleTimeString(),
     });
 
-    res.json({ imported: inserted.length, skipped: leadsToInsert.length - inserted.length });
+    res.json({ imported: inserted.length, skipped: leadsToInsert.length - inserted.length, leads: inserted });
   } catch (err) {
     // insertMany with ordered:false — partial success case
     if (err.insertedDocs) {
