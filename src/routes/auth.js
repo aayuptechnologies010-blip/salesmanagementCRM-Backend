@@ -20,6 +20,8 @@ router.post('/login', async (req, res) => {
     }
 
     const token = signToken(user._id);
+    // Save session token — purana session automatically invalid ho jaayega
+    await User.findByIdAndUpdate(user._id, { sessionToken: token });
     res.json({ token, user });
   } catch (err) {
     res.status(500).json({ message: err.message });

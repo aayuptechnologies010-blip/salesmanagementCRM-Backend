@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordToken:   { type: String },
   resetPasswordExpires: { type: Date },
+  sessionToken:         { type: String, default: null },
 }, { timestamps: true });
 
 userSchema.methods.generateResetToken = function () {
