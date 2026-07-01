@@ -206,7 +206,7 @@ function parseRow(row, headerMap, multiMap) {
     techStack:     get('techStack'),
     timeline:      get('timeline'),
     // Client-specific
-    contactPerson: name,
+    contactPerson: get('contactPerson') || name,
     pinCode:       get('pinCode'),
     typeOfCare:    get('typeOfCare'),
     hospitalZone:  get('hospitalZone'),

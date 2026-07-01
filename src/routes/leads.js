@@ -40,7 +40,13 @@ router.get('/', protect, async (req, res) => {
         { $sort: { hasPhone: -1, createdAt: -1 } },
         { $skip: (pageNum - 1) * limitNum },
         { $limit: limitNum },
-        { $project: { name: 1, email: 1, phone: 1, company: 1, source: 1, status: 1, leadType: 1, assignedTo: 1, followUpDate: 1, value: 1, createdAt: 1, notes: 1 } },
+        { $project: {
+          name: 1, email: 1, phone: 1, company: 1, source: 1, status: 1,
+          leadType: 1, assignedTo: 1, followUpDate: 1, value: 1, createdAt: 1, notes: 1,
+          contactPerson: 1, pinCode: 1, typeOfCare: 1, hospitalZone: 1, tpaName: 1,
+          course: 1, branch: 1, college: 1, year: 1, trainingType: 1,
+          projectType: 1, techStack: 1, timeline: 1
+        } },
       ]),
       Lead.countDocuments(filter),
     ]);
