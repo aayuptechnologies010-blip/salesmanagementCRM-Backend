@@ -129,6 +129,19 @@ router.patch('/assign/bulk', protect, async (req, res) => {
     }
 
     await log(req.user.name, `${eligibleIds.length} lead(s) assigned to ${assignedTo}`, assignedTo, 'assign');
+
+    // Real-time Push & Socket Notification to assigned user
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('lead_assigned', {
+        assignedTo,
+        assignedBy: req.user.name,
+        count: eligibleIds.length,
+        leadNames: eligibleLeads.map(l => l.name).slice(0, 3),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    }
+
     res.json({ message: `${eligibleIds.length} leads assigned to ${assignedTo}` });
   } catch (err) {
     res.status(500).json({ message: err.message });

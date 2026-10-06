@@ -49,19 +49,15 @@ router.patch('/profile', protect, async (req, res) => {
   }
 });
 
-// PATCH /api/auth/notifications — update own notification preferences
-router.patch('/notifications', protect, async (req, res) => {
+// PATCH /api/auth/fcm-token — save device FCM push token
+router.patch('/fcm-token', protect, async (req, res) => {
   try {
-    const { notifications } = req.body;
-    if (!notifications) return res.status(400).json({ message: 'Notifications object required' });
-    const updated = await User.findByIdAndUpdate(
-      req.user._id,
-      { notifications },
-      { new: true, runValidators: true }
-    ).select('-password');
-    res.json(updated);
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Token required' });
+    await User.findByIdAndUpdate(req.user._id, { fcmToken: token });
+    res.json({ success: true, message: 'FCM Token updated' });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 });
 
