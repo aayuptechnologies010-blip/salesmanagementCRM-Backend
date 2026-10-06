@@ -1,4 +1,6 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
+require("dotenv").config(); // fallback
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -8,7 +10,6 @@ const helmet = require("helmet");
 const compression = require("compression");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
-const path = require("path");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -17,11 +18,22 @@ const allowedOrigins = [
   "https://salesmanagementcrm-frontend.onrender.com",
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
 ];
 
 // Socket.io setup
 const io = new Server(httpServer, {
-  cors: { origin: allowedOrigins, credentials: true },
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || /^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+  },
 });
 
 // email -> socketId map (active sessions)
@@ -91,11 +103,15 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      if (
+        allowedOrigins.includes(origin) ||
+        /^http:\/\/localhost:\d+$/.test(origin) ||
+        /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)
+      ) {
         return callback(null, true);
       }
 
-      return callback(null, false);
+      return callback(null, true);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

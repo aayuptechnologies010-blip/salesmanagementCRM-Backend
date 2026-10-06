@@ -30,24 +30,20 @@ router.get('/', protect, async (req, res) => {
       ];
     }
 
-    const pageNum  = Number(page)  || 1;
-    const limitNum = Number(limit) || 50000;
+    const pageNum  = Math.max(1, Number(page) || 1);
+    const limitNum = limit !== undefined ? Number(limit) : 2000;
+
+    let query = Lead.find(filter)
+      .select('name email phone company source status leadType assignedTo followUpDate value createdAt notes contactPerson pinCode typeOfCare hospitalZone tpaName course branch college year trainingType projectType techStack timeline')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (limitNum > 0) {
+      query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
+    }
 
     const [leads, total] = await Promise.all([
-      Lead.aggregate([
-        { $match: filter },
-        { $addFields: { hasPhone: { $cond: [{ $and: [{ $gt: [{ $strLenCP: { $ifNull: ['$phone', ''] } }, 6] }] }, 1, 0] } } },
-        { $sort: { hasPhone: -1, createdAt: -1 } },
-        { $skip: (pageNum - 1) * limitNum },
-        { $limit: limitNum },
-        { $project: {
-          name: 1, email: 1, phone: 1, company: 1, source: 1, status: 1,
-          leadType: 1, assignedTo: 1, followUpDate: 1, value: 1, createdAt: 1, notes: 1,
-          contactPerson: 1, pinCode: 1, typeOfCare: 1, hospitalZone: 1, tpaName: 1,
-          course: 1, branch: 1, college: 1, year: 1, trainingType: 1,
-          projectType: 1, techStack: 1, timeline: 1
-        } },
-      ]),
+      query.exec(),
       Lead.countDocuments(filter),
     ]);
 
