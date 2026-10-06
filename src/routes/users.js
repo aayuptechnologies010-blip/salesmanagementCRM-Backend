@@ -54,7 +54,7 @@ router.patch('/:id', protect, adminOnly, async (req, res) => {
   try {
     const data = { ...req.body };
     // Only hash password if it's being changed
-    if (data.password) {
+    if (data.password && data.password.trim()) {
       const bcrypt = require('bcryptjs');
       data.password = await bcrypt.hash(data.password, 10);
     } else {
@@ -63,7 +63,10 @@ router.patch('/:id', protect, adminOnly, async (req, res) => {
     if (data.name) {
       data.avatar = data.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
-    const user = await User.findByIdAndUpdate(req.params.id, data, { new: true }).select('-password');
+    delete data._id;
+    delete data.id;
+
+    const user = await User.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true }).select('-password').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
