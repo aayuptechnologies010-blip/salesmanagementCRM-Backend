@@ -25,7 +25,7 @@ async function seed() {
   await User.create({
     name: 'Super Admin',
     email: 'aayup@gmail.com',
-    password: await bcrypt.hash('aayup2025', 10),
+    password: 'aayup2025',
     role: 'Super Admin',
     team: '-',
     avatar: 'SA',

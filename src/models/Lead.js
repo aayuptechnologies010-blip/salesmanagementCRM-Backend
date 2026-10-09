@@ -1,14 +1,23 @@
 const mongoose = require('mongoose');
 
 const leadSchema = new mongoose.Schema({
-  name:         { type: String, required: true, trim: true },
-  email:        { type: String, trim: true, lowercase: true },
-  phone:        { type: String, trim: true, default: '' },
-  company:      { type: String, trim: true },
-  value:        { type: String, default: '' },
-  source:       { type: String, enum: ['Website', 'Referral', 'LinkedIn', 'Cold Call', 'Email Campaign', 'Conference', 'Other'], default: 'Website' },
-  status:       { type: String, enum: ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost', 'No Response', 'Interested'], default: 'New' },
-  leadType:     { type: String, enum: ['Client Project', 'Student Training'], default: 'Client Project' },
+  name:           { type: String, required: true, trim: true },
+  email:          { type: String, trim: true, lowercase: true },
+  phone:          { type: String, trim: true, default: '' },
+  alternatePhone: { type: String, trim: true, default: '' },
+  company:        { type: String, trim: true },
+  designation:    { type: String, trim: true, default: '' },
+  requirement:    { type: String, trim: true, default: '' },
+  budget:         { type: String, trim: true, default: '' },
+  location:       { type: String, trim: true, default: '' },
+  industry:       { type: String, trim: true, default: '' },
+  companySize:    { type: String, trim: true, default: '' },
+  priority:       { type: String, enum: ['Hot', 'Warm', 'Cold', ''], default: '' },
+  value:          { type: String, default: '' },
+  source:         { type: String, enum: ['Website', 'Facebook', 'Instagram', 'Google Ads', 'WhatsApp', 'Referral', 'Cold Call', 'Walk-in', 'Manual Entry', 'Excel/CSV Import', 'LinkedIn', 'Email Campaign', 'Conference', 'Other'], default: 'Website' },
+  status:         { type: String, enum: ['New', 'Assigned', 'Contacted', 'Interested', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Not Interested', 'Invalid', 'Duplicate', 'No Response', 'Lost'], default: 'New' },
+  lostReason:     { type: String, trim: true, default: '' },
+  leadType:       { type: String, enum: ['Client Project', 'Student Training'], default: 'Client Project' },
   
   // Student Training details
   course:       { type: String, default: '' },

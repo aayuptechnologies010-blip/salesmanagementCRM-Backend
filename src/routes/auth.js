@@ -2,6 +2,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const sendEmail = require('../utils/sendEmail');
 
 const signToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
 
@@ -75,8 +76,28 @@ router.post('/forgot-password', async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     console.log(`\n🔑 Password reset link for ${email}:\n${resetUrl}\n`);
 
-    // If nodemailer is configured, send email — otherwise just log
-    res.json({ message: 'If this email exists, a reset link has been sent.', resetUrl });
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: 'Password Reset - Sales CRM',
+        message: `You requested a password reset. Click the following link to reset your password:\n\n${resetUrl}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>Password Reset Request</h2>
+            <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+            <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: #ffffff; text-decoration: none; border-radius: 5px; margin: 20px 0;">Reset Password</a>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+          </div>
+        `
+      });
+      res.json({ message: 'If this email exists, a reset link has been sent.' });
+    } catch (err) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      console.error('Email send error:', err);
+      res.status(500).json({ message: 'Error sending email. Please try again later.' });
+    }
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

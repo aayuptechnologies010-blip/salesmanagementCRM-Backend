@@ -177,6 +177,13 @@ app.use(
 );
 
 /* =========================
+   Firebase Initialization
+========================= */
+
+const { initFirebase } = require("./utils/firebase");
+initFirebase();
+
+/* =========================
    Routes
 ========================= */
 
@@ -191,6 +198,8 @@ app.use(
 app.use("/api/leads", require("./routes/leads"));
 app.use("/api/followups", require("./routes/followups"));
 app.use("/api/activities", require("./routes/activities"));
+app.use("/api/opportunities", require("./routes/opportunities"));
+app.use("/api/customers", require("./routes/customers"));
 app.use("/api/invoices", require("./routes/invoices"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/settings", require("./routes/settings"));

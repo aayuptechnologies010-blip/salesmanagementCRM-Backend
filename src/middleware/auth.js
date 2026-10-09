@@ -20,8 +20,8 @@ const protect = async (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-  if (req.user.role === 'Super Admin' || req.user.role === 'Admin') return next();
-  res.status(403).json({ message: 'Admin access required' });
+  if (['Super Admin', 'Admin', 'Manager'].includes(req.user.role)) return next();
+  res.status(403).json({ message: 'Admin/Manager access required' });
 };
 
 const superAdminOnly = (req, res, next) => {
@@ -29,4 +29,13 @@ const superAdminOnly = (req, res, next) => {
   res.status(403).json({ message: 'Super Admin access required' });
 };
 
-module.exports = { protect, adminOnly, superAdminOnly };
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role) && req.user.role !== 'Super Admin') {
+      return res.status(403).json({ message: `Access restricted. Required roles: ${roles.join(', ')}` });
+    }
+    next();
+  };
+};
+
+module.exports = { protect, adminOnly, superAdminOnly, authorizeRoles };
